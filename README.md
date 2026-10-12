@@ -6,7 +6,7 @@ When a shop's internet drops, card terminals, POS and Wi-Fi keep running on cell
 
 > **Status:** Built and bench-tested in 2025–2026. Development is paused. The production source lives in private repositories; this repo is the public overview. I'm happy to walk through the code or demo the failover live.
 >
-> **Full case study:** [`case-study/index.html`](case-study/index.html)
+> **Full case study:** [rnlcore-sites.github.io/rnlcore-showcase/case-study](https://rnlcore-sites.github.io/rnlcore-showcase/case-study/)
 
 ---
 
