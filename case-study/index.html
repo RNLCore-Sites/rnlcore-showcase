@@ -1,0 +1,293 @@
+<title>RNLCore Case Study</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: single reading column, wide breakouts for the architecture diagram and the engineering log; state colors borrowed from a router status LED (primary = ISP up, amber = backup active). */
+:root {
+  --paper: #f2f5f4;
+  --surface: #ffffff;
+  --ink: #15201d;
+  --muted: #55625e;
+  --rule: #d5ddda;
+  --primary: #1d5c9e;
+  --backup: #b9670f;
+  --ok: #2c7a4b;
+  --code-bg: #e8edeb;
+  --display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #111816; --surface: #18211e; --ink: #e3eae7; --muted: #9aa8a3; --rule: #2b3733;
+    --primary: #6fa6e0; --backup: #e3a04f; --ok: #6cc08d; --code-bg: #1d2824; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #111816; --surface: #18211e; --ink: #e3eae7; --muted: #9aa8a3; --rule: #2b3733;
+  --primary: #6fa6e0; --backup: #e3a04f; --ok: #6cc08d; --code-bg: #1d2824; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.6; padding-inline: 20px; padding-block: 0 64px; }
+.wrap { max-width: 760px; margin: 0 auto; }
+.wide { max-width: 980px; margin: 0 auto; }
+a { color: var(--primary); }
+a:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+
+header { padding-block: 56px 28px; }
+.status { display: inline-flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 13px; color: var(--muted); border: 1px solid var(--rule); border-radius: 999px; padding: 4px 12px; background: var(--surface); }
+.led { width: 9px; height: 9px; border-radius: 50%; background: var(--backup); box-shadow: 0 0 0 3px color-mix(in srgb, var(--backup) 22%, transparent); }
+h1 { font-family: var(--display); font-stretch: 78%; font-weight: 800; font-size: clamp(44px, 9vw, 84px); line-height: .95; letter-spacing: -.01em; margin: 22px 0 14px; text-wrap: balance; }
+.lede { font-size: 20px; line-height: 1.5; max-width: 34em; margin: 0; }
+.byline { margin-top: 20px; font-size: 15px; color: var(--muted); }
+.byline strong { color: var(--ink); font-weight: 600; }
+
+section { padding-block: 36px; border-top: 1px solid var(--rule); }
+h2 { font-family: var(--display); font-stretch: 85%; font-weight: 700; font-size: 30px; line-height: 1.1; margin: 0 0 14px; text-wrap: balance; }
+h3 { font-family: var(--display); font-stretch: 90%; font-weight: 700; font-size: 19px; margin: 0 0 4px; }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+p { margin: 0 0 14px; max-width: 65ch; }
+.muted { color: var(--muted); }
+code { font-family: var(--mono); font-size: .86em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+
+.diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 18px; margin-top: 18px; }
+.diagram svg { display: block; min-width: 760px; width: 100%; height: auto; }
+.diagram text { font-family: var(--body); fill: var(--ink); }
+.diagram .mono { font-family: var(--mono); fill: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 18px; font-size: 14px; color: var(--muted); margin-top: 12px; }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.sw { width: 22px; height: 3px; border-radius: 2px; }
+
+.layers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 28px; margin-top: 24px; }
+.layers div { min-width: 0; }
+.layers p { font-size: 15.5px; margin: 0; }
+
+.log { display: grid; gap: 0; margin-top: 10px; }
+.entry { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 20px; padding-block: 20px; border-top: 1px dashed var(--rule); }
+.entry:first-child { border-top: 0; }
+.tag { font-family: var(--mono); font-size: 12.5px; color: var(--muted); padding-top: 3px; }
+.tag b { display: block; font-weight: 500; color: var(--ink); font-size: 20px; font-family: var(--display); font-stretch: 80%; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.entry p { font-size: 15.5px; margin: 0 0 8px; }
+.entry p:last-child { margin: 0; }
+pre { font-family: var(--mono); font-size: 12.5px; background: var(--code-bg); border-radius: 6px; padding: 10px 12px; overflow-x: auto; margin: 8px 0 0; line-height: 1.5; }
+
+.plans { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+.plan { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 18px; min-width: 0; }
+.plan p { font-size: 15.5px; margin: 0; }
+
+.stack { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding: 0; list-style: none; }
+.stack li { font-family: var(--mono); font-size: 13px; border: 1px solid var(--rule); background: var(--surface); border-radius: 6px; padding: 4px 10px; }
+
+ul.plain { margin: 0; padding-left: 20px; max-width: 65ch; }
+ul.plain li { margin-bottom: 6px; }
+
+footer { padding-block: 36px 0; border-top: 1px solid var(--rule); font-size: 15px; }
+.contact { font-family: var(--mono); user-select: all; }
+
+@media (max-width: 640px) {
+  body { font-size: 16px; }
+  .layers, .plans { grid-template-columns: minmax(0, 1fr); }
+  .entry { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  header { padding-block: 36px 20px; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="status"><span class="led" aria-hidden="true"></span>Status: built and bench-tested, development paused</span>
+    <h1>RNLCore</h1>
+    <p class="lede">A managed cellular failover router for small businesses. When the ISP drops, card terminals, POS and Wi-Fi keep running on cellular, with no one touching anything.</p>
+    <p class="byline">Designed, built and operated end to end by <strong>Ryan Donahue</strong>, founder of RNLCore LLC. Hardware, firmware, cloud backend, customer portal, billing and go-to-market.</p>
+  </header>
+
+  <section>
+    <p class="eyebrow">The problem</p>
+    <h2>An hour offline costs a small shop more than a year of backup service</h2>
+    <p>Restaurants, salons and auto dealers run payments, online orders and scheduling through the cloud. When the ISP goes down, card readers stop, delivery apps stop taking orders, and staff stand around while the owner sits on hold. The 2024 CDK Global outage, which knocked dealership software offline nationwide, showed how exposed this market is.</p>
+    <p>Enterprise failover gear exists (Cradlepoint, Peplink), but it is priced and configured for IT departments. RNLCore's goal was the same protection as a box a shop owner plugs in, with the cellular service, monitoring and billing managed for them.</p>
+  </section>
+</div>
+
+<section class="wide">
+  <div class="wrap" style="max-width:none">
+    <p class="eyebrow">What I built</p>
+    <h2>Four layers, one product</h2>
+    <p>The router sits between the ISP modem and everything in the business. A control plane in the cloud knows the state of every device, decides whether cellular service is allowed, and feeds a customer dashboard and an internal admin console.</p>
+  </div>
+  <div class="diagram" role="img" aria-label="Architecture: business devices connect to the RNLCore router, which uses the ISP as primary and a multi-carrier cellular SIM as backup. The router checks in with the FastAPI control plane, which serves the RNL Hub dashboard, the admin console, and Stripe billing.">
+    <svg viewBox="0 0 900 330" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arP" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--primary)"/></marker>
+        <marker id="arB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--backup)"/></marker>
+        <marker id="arM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--muted)"/></marker>
+      </defs>
+      <!-- business devices -->
+      <rect x="10" y="40" width="170" height="130" rx="8" style="fill:var(--paper);stroke:var(--rule)"/>
+      <text x="26" y="66" font-size="15" font-weight="600">In the business</text>
+      <text x="26" y="92" font-size="13">Card terminals, POS</text>
+      <text x="26" y="112" font-size="13">IP phones, PCs</text>
+      <text x="26" y="132" font-size="13">Staff + guest Wi-Fi</text>
+      <text x="26" y="156" class="mono" font-size="11">LAN ports / Wi-Fi</text>
+      <!-- router -->
+      <rect x="250" y="30" width="200" height="150" rx="8" style="fill:var(--surface);stroke:var(--ink);stroke-width:1.5"/>
+      <text x="266" y="58" font-size="15" font-weight="700">RNLCore router</text>
+      <text x="266" y="80" class="mono" font-size="11">GL-X3000 · Quectel RM520N 5G</text>
+      <text x="266" y="104" font-size="13">Patched OpenWrt</text>
+      <text x="266" y="124" font-size="13">Failover + health checks</text>
+      <text x="266" y="144" font-size="13">Fail-closed service lock</text>
+      <text x="266" y="164" font-size="13">Self-heal watchdog</text>
+      <line x1="180" y1="105" x2="246" y2="105" style="stroke:var(--muted);stroke-width:2" marker-end="url(#arM)"/>
+      <!-- ISP -->
+      <rect x="530" y="20" width="160" height="56" rx="8" style="fill:var(--paper);stroke:var(--rule)"/>
+      <text x="546" y="44" font-size="14" font-weight="600">ISP modem</text>
+      <text x="546" y="63" class="mono" font-size="11">primary WAN</text>
+      <line x1="450" y1="60" x2="526" y2="48" style="stroke:var(--primary);stroke-width:2.5" marker-end="url(#arP)"/>
+      <!-- Cellular -->
+      <rect x="530" y="112" width="160" height="56" rx="8" style="fill:var(--paper);stroke:var(--rule)"/>
+      <text x="546" y="136" font-size="14" font-weight="600">Cellular backup</text>
+      <text x="546" y="155" class="mono" font-size="11">Soracom multi-carrier SIM</text>
+      <line x1="450" y1="135" x2="526" y2="140" style="stroke:var(--backup);stroke-width:2.5;stroke-dasharray:7 5" marker-end="url(#arB)"/>
+      <!-- control plane -->
+      <rect x="250" y="236" width="200" height="74" rx="8" style="fill:var(--surface);stroke:var(--ink);stroke-width:1.5"/>
+      <text x="266" y="262" font-size="15" font-weight="700">Control plane</text>
+      <text x="266" y="282" class="mono" font-size="11">FastAPI · api.rnlcore.com/v1</text>
+      <text x="266" y="300" font-size="12.5">Device state, auth, usage</text>
+      <line x1="350" y1="182" x2="350" y2="232" style="stroke:var(--muted);stroke-width:2" marker-end="url(#arM)"/>
+      <text x="360" y="212" class="mono" font-size="11">POST /v1/device/checkin</text>
+      <!-- outputs -->
+      <rect x="530" y="214" width="160" height="40" rx="8" style="fill:var(--paper);stroke:var(--rule)"/>
+      <text x="546" y="239" font-size="13" font-weight="600">RNL Hub (customers)</text>
+      <rect x="530" y="264" width="160" height="40" rx="8" style="fill:var(--paper);stroke:var(--rule)"/>
+      <text x="546" y="289" font-size="13" font-weight="600">Admin console (ops)</text>
+      <rect x="720" y="238" width="140" height="44" rx="8" style="fill:var(--paper);stroke:var(--rule)"/>
+      <text x="736" y="265" font-size="13" font-weight="600">Stripe billing</text>
+      <line x1="450" y1="258" x2="526" y2="236" style="stroke:var(--muted);stroke-width:2" marker-end="url(#arM)"/>
+      <line x1="450" y1="282" x2="526" y2="284" style="stroke:var(--muted);stroke-width:2" marker-end="url(#arM)"/>
+      <line x1="690" y1="236" x2="716" y2="252" style="stroke:var(--muted);stroke-width:2" marker-end="url(#arM)"/>
+    </svg>
+  </div>
+  <div class="legend">
+    <span><i class="sw" style="background:var(--primary)"></i>Normal: traffic on ISP</span>
+    <span><i class="sw" style="background:var(--backup)"></i>Outage: automatic switch to cellular, then back</span>
+    <span><i class="sw" style="background:var(--muted)"></i>Management and data</span>
+  </div>
+
+  <div class="wrap" style="max-width:none">
+    <div class="layers">
+      <div><h3>Edge device</h3><p>GL.iNet GL-X3000 with a 5G modem, re-flashed with a patched OpenWrt image. Becomes the shop's router: LAN ports for wired equipment, Wi-Fi for everything else, both protected.</p></div>
+      <div><h3>Cellular service</h3><p>Soracom multi-carrier SIMs, so a unit uses whichever major network is strongest at the site. Tuned to idle cheaply and only spend data during an outage.</p></div>
+      <div><h3>Control plane</h3><p>Python/FastAPI backend and the single source of truth for every device. On each check-in it returns the policy the router must obey. Billing state maps directly to network access, through Stripe webhooks and an entitlement state machine.</p></div>
+      <div><h3>Customer + operations</h3><p>RNL Hub, a React/Vite dashboard showing online status, normal vs. backup mode, usage and invoices, with Stripe checkout. A separate admin console for accounts, provisioned devices and notes.</p></div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+  <section>
+    <p class="eyebrow">Engineering log</p>
+    <h2>Problems I hit on real hardware, and how I solved them</h2>
+    <div class="log">
+      <div class="entry">
+        <div class="tag">Architecture<b>Authority off-device</b></div>
+        <div>
+          <p>Designed the system so routers are stateless enforcers and all authority lives in the control plane. Devices enforce, the control plane decides, the UIs only reflect state. No customer or UI action can override it.</p>
+          <p>Every check-in returns a versioned policy the device must apply exactly:</p>
+          <pre>allowed · allow_wired · allow_cellular · captive_portal
+policy_version · message · checkin_interval_seconds · fail_closed</pre>
+          <p style="margin-top:10px">Lock rules are non-negotiable: an unknown device, a reboot or power loss, a factory reset, or an unreachable control plane all mean locked until the backend explicitly re-authorizes.</p>
+        </div>
+      </div>
+      <div class="entry">
+        <div class="tag">Provisioning<b>Zero-trust identity</b></div>
+        <div>
+          <p>Each unit gets a canonical UUIDv4 generated off-device and written to <code>/etc/rnl/identity.json</code>. The device can never create, change or self-register its own ID. An admin registers that exact ID as inventory, still locked, and only assigning it to a paying account can unlock it.</p>
+          <p>Customers then claim their unit by serial number in RNL Hub. Claims are idempotent, and duplicate or already-assigned serials are rejected with a controlled conflict.</p>
+        </div>
+      </div>
+      <div class="entry">
+        <div class="tag">Operations<b>Audited admin</b></div>
+        <div>
+          <p>The admin console (RNLConnect) covers the device registry, assign, unassign and reassign between accounts, time-boxed temporary unlocks, and device replacement. Every admin action goes to an immutable audit log, and support roles are deliberately restricted.</p>
+          <p class="muted">Backend built with Alembic migrations (including hashed tokens) and a pytest suite, and validated against a device simulator before hardware integration.</p>
+        </div>
+      </div>
+      <div class="entry">
+        <div class="tag">Idle data cost<b>~94% lower</b></div>
+        <div>
+          <p>Units on standby were burning metered cellular data. I traced it to the vendor multi-WAN daemon (<code>kmwan</code>) pinging over cellular every 3 seconds to check health.</p>
+          <p>Retuned the check interval to 35 seconds, which kept outage detection fast enough for a shop while cutting idle SIM cost by about 94%.</p>
+        </div>
+      </div>
+      <div class="entry">
+        <div class="tag">Service enforcement<b>Fail-closed</b></div>
+        <div>
+          <p>Designed the service lock so an unpaid or unreachable device can't run up cellular charges. <code>rnl-checkin</code> reports to the control plane; if it can't confirm service, <code>rnl-lock</code> installs an iptables/ip6tables FORWARD chain that blocks cellular forwarding while leaving the wired ISP path untouched.</p>
+          <p>The customer's normal internet never breaks because of billing. Only the backup path is gated.</p>
+        </div>
+      </div>
+      <div class="entry">
+        <div class="tag">Reliability<b>Self-healing</b></div>
+        <div>
+          <p>Built a modem watchdog with an escalation ladder. When the WAN drops it retries the modem in stages, and if the modem stays unresponsive after three attempts it raises an alert to the control plane.</p>
+          <pre>RNL_CORE: WAN down - modem watchdog activating
+RNL_CORE: Heal L4: modem unresponsive after 3 attempts - alerting Control Plane</pre>
+        </div>
+      </div>
+      <div class="entry">
+        <div class="tag">Latency under load<b>316 → 22 ms</b></div>
+        <div>
+          <p>Bench-tested the cellular path and found loaded latency spiking to 666 ms. After configuration changes, the extra latency under load dropped from about 316 ms to about 22 ms, which matters for card terminals and VoIP during an outage.</p>
+          <p class="muted">Also found the carrier's public IP breaking out in Oregon for a New Jersey unit, which explains the baseline latency and is a carrier-path tradeoff to weigh.</p>
+        </div>
+      </div>
+      <div class="entry">
+        <div class="tag">Root cause<b>IPv6 on the SIM</b></div>
+        <div>
+          <p>Chased a client-specific streaming failure through the system log to the SIM rejecting IPv6 data calls in a 60-second retry loop (QMI error on <code>requestSetupDataCall</code>). Disabling IPv6 on the cellular interface let the IPv4 bearer dial cleanly in about 20 seconds.</p>
+        </div>
+      </div>
+      <div class="entry">
+        <div class="tag">Deployment<b>Golden Base</b></div>
+        <div>
+          <p>Packaged every patch into a repeatable build kit: a base image, an overlay, a patched modem script and network/modem configs, staged by <code>build_golden_base.sh</code>. Any stock X3000 becomes an RNLCore unit the same way every time.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Product and go-to-market</p>
+    <h2>Packaged for owners, not IT departments</h2>
+    <p>Setup is one cable from the ISP modem, power, and a registration code. I designed two service models and a launch offer around how small businesses actually buy.</p>
+    <div class="plans">
+      <div class="plan"><h3>Flex</h3><p>Customer owns the hardware and turns backup service on when they want it. Lower commitment, pay for protection as needed.</p></div>
+      <div class="plan"><h3>Guard</h3><p>Hardware and always-on backup bundled into one monthly payment. Set it and forget it.</p></div>
+    </div>
+    <ul class="plain" style="margin-top:20px">
+      <li>Founder presale: 10 spots, $799 hardware plus $69 a month locked for life.</li>
+      <li>Target verticals ranked by outage pain: auto dealerships first, then restaurants, salons and security integrators.</li>
+      <li>Byte Core, a community outage-reporting board where customers post when a local business is down. Built as a lead source for businesses that just lost a shift.</li>
+      <li>Marketing site, sales playbook, B2B landing pages and business email infrastructure.</li>
+    </ul>
+  </section>
+
+  <section>
+    <p class="eyebrow">Stack</p>
+    <h2>What it runs on</h2>
+    <ul class="stack">
+      <li>OpenWrt</li><li>Shell / BusyBox</li><li>iptables · ip6tables</li><li>Quectel QMI modem</li><li>Soracom</li><li>Python</li><li>FastAPI</li><li>Alembic</li><li>pytest</li><li>Soracom API</li><li>Stripe webhooks</li><li>React</li><li>Vite</li><li>Tailwind</li><li>Stripe</li><li>DigitalOcean</li><li>nginx + rsync deploys</li>
+    </ul>
+  </section>
+
+  <section>
+    <p class="eyebrow">Where it stands</p>
+    <h2>Working system, paused business</h2>
+    <p>The hardware, firmware, backend and dashboard were built and tested on the bench. I paused development before signing customers to focus on full-time work. The source lives in private GitHub repositories, and I'm glad to walk through the code or demo the failover live.</p>
+  </section>
+
+  <footer>
+    <p><strong>Ryan Donahue</strong> · Hamilton, NJ</p>
+    <p class="contact">ryandonahue61@gmail.com</p>
+  </footer>
+</div>
